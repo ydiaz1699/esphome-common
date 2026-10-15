@@ -23,11 +23,14 @@ Cada dispositivo puede consumir las plantillas por **dos caminos** (ver abajo).
 | Carpeta | Archivo | Qué aporta | Mapas únicos | Substitutions requeridas |
 |---|---|---|---|---|
 | `common/` | `base.yaml` | `esphome` (+`min_version`), `logger`, `api` cifrada, `ota` | `esphome, logger, api, ota` | `device_name, friendly_name, device_comment, log_level, api_encryption_key, ota_password` |
-| `common/` | `wifi.yaml` | WiFi + IP fija + portal de recuperación | `wifi, captive_portal` | `wifi_ssid, wifi_password, wifi_fallback, static_ip, gateway, friendly_name` |
+| `common/` | `wifi.yaml` | WiFi + ajustes de radio/energía + IP fija + portal de recuperación | `wifi, captive_portal` | `wifi_ssid, wifi_password, wifi_fallback, static_ip, gateway, friendly_name, wifi_power_save, wifi_output_power, wifi_fast_connect` |
 | `common/` | `diagnostics.yaml` | debug, señal/uptime/memoria, IP/SSID/versión, estado online, botones restart/safe_mode | `debug` | `friendly_name, wifi_update_interval, uptime_update_interval, debug_update_interval` |
 | `boards/` | `esp32.yaml` | Placa ESP32 genérica, 4MB, ESP-IDF | `esp32` | — |
+| `boards/` | `esp32-c6.yaml` | Placa ESP32-C6 (DevKitM-1), ESP-IDF | `esp32` | — |
 | `modules/` | `entradas.yaml` | Pulsador GPIO (→Sonoff vía HA) + TTP223 (uso futuro) | — (listas) | `boton_name, boton_pin, debounce_time, sonoff_entity, ttp_name, ttp_pin` |
 | `modules/` | `touch_switch.yaml` | Switch template + indicador de un Sonoff (fuente de verdad) | — (listas) | `sonoff_entity, switch_name` |
+| `modules/` | `buzzer.yaml` | Buzzer de pulso controlado desde HA (switch momentáneo) | — (listas) | `buzzer_pin, buzzer_name, buzzer_pulse` |
+| `modules/` | `battery_adc.yaml` | Voltaje de batería por ADC nativo + % (curva LiPo). ADC nativo soporta C6; sin `external_components` | — (listas) | `bat_pin, bat_multiply, bat_attenuation, bat_update` |
 
 **Convención de carpetas:** `common/` = igual en todas las placas · `boards/` =
 hardware · `modules/` = bloques por responsabilidad reutilizables. Cada **mapa único**
@@ -98,7 +101,7 @@ packages:
 > lo mismo. El Camino A usa el estado del working tree local; el B, el del tag.
 > Funciona con **GitHub, GitLab y Codeberg**.
 
-### Device completo de ejemplo (sea cual sea el camino)
+### Device de ejemplo 1 — `pueba` (ESP32 + pulsador/Sonoff)
 
 ```yaml
 substitutions:
@@ -118,6 +121,10 @@ substitutions:
   wifi_update_interval: 60s
   uptime_update_interval: 300s
   debug_update_interval: 60s
+  # ajustes de radio (valores "normales" para una placa alimentada por USB)
+  wifi_power_save: NONE
+  wifi_output_power: "20dB"
+  wifi_fast_connect: "false"
   # --- secretos: !secret -> substitution (NO van en este repo) ---
   wifi_ssid: !secret wifi_ssid
   wifi_password: !secret wifi_password
@@ -128,6 +135,64 @@ substitutions:
 packages:
   # …Camino A o Camino B (ver arriba)…
 ```
+
+### Device de ejemplo 2 — `buzzer-c6` (ESP32-C6 + buzzer + batería)
+
+Combina los módulos nuevos. Nótese `wifi_power_save: HIGH` (ahorro para batería) y el
+`esphome: on_boot` opcional para leer la batería al arrancar (va en el **device**, no
+en `battery_adc.yaml`, para no chocar con el `esphome:` de `base.yaml`):
+
+```yaml
+substitutions:
+  device_name: buzzer-c6
+  friendly_name: "Buzzer"
+  device_comment: "ESP32-C6 buzzer de pulso + monitor de batería LiPo"
+  log_level: "INFO"
+  static_ip: "192.168.1.50"
+  gateway: "192.168.1.1"
+  wifi_update_interval: 60s
+  uptime_update_interval: 300s
+  debug_update_interval: 60s
+  # ajustes de radio para dispositivo a batería
+  wifi_power_save: HIGH
+  wifi_output_power: "15dB"
+  wifi_fast_connect: "true"
+  # buzzer
+  buzzer_pin: "GPIO2"
+  buzzer_name: "Buzzer"
+  buzzer_pulse: "1s"
+  # batería (ADC nativo)
+  bat_pin: "GPIO0"
+  bat_multiply: "2.0"        # divisor 1:1 → multiplica x2
+  bat_attenuation: "auto"    # IMPRESCINDIBLE para leer >1.1V
+  bat_update: "900s"         # 15 min
+  # secretos
+  wifi_ssid: !secret wifi_ssid
+  wifi_password: !secret wifi_password
+  wifi_fallback: !secret wifi_fallback
+  api_encryption_key: !secret buzzer_api_key
+  ota_password: !secret buzzer_ota_password
+
+# Lectura de batería al arrancar (opcional). Va aquí, no en battery_adc.yaml.
+esphome:
+  on_boot:
+    priority: 800
+    then:
+      - component.update: battery_voltage
+
+packages:
+  base: !include common/base.yaml           # o Camino B (github://)
+  placa: !include boards/esp32-c6.yaml
+  wifi: !include common/wifi.yaml
+  diagnostics: !include common/diagnostics.yaml
+  buzzer: !include modules/buzzer.yaml
+  bateria: !include modules/battery_adc.yaml
+```
+
+> ⚠️ El `esphome: on_boot` del device **se fusiona** con el de `base.yaml` (mismo mapa
+> único `esphome`). ESPHome combina las claves; `on_boot` admite varias
+> automatizaciones. Validar con `esphome config` que ambas conviven (la de base.yaml
+> loguea el arranque, la del device lee la batería).
 
 Validar antes de flashear:
 
@@ -172,6 +237,10 @@ Fija siempre `ref:` a un **tag** (`v1.0.0`), no a `main`: así un cambio en este
 entra en tu próxima compilación sin que tú lo decidas (subiendo el `ref`). `refresh`
 solo controla la caché del mismo `ref`.
 
+- `v1.1.0` — añadidos `boards/esp32-c6.yaml`, `modules/buzzer.yaml`,
+  `modules/battery_adc.yaml` (ADC nativo, sin fork); `common/wifi.yaml` gana ajustes
+  de radio (`power_save_mode`/`output_power`/`fast_connect`). ⚠️ wifi.yaml ahora exige
+  3 substitutions nuevas → los devices deben definirlas.
 - `v1.0.0` — plantillas base iniciales (base, wifi, diagnostics, esp32, entradas,
   touch_switch).
 

@@ -1,0 +1,14 @@
+# ============================================================================
+# boards/esp32-c6.yaml — Hardware: ESP32-C6 (DevKitM-1), ESP-IDF
+# ----------------------------------------------------------------------------
+# Único dueño del mapa `esp32` para placas C6. El ADC nativo de ESPHome soporta
+# el C6 (ADC1 = GPIO0–GPIO6, calibración curve-fitting automática) → NO hace
+# falta external_components para el ADC. Ver modules/battery_adc.yaml.
+#
+# Requiere del device (substitutions): (ninguna; board fijo)
+# ============================================================================
+
+esp32:
+  board: esp32-c6-devkitm-1
+  framework:
+    type: esp-idf

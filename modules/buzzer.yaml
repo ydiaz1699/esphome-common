@@ -1,0 +1,30 @@
+# ============================================================================
+# modules/buzzer.yaml — Buzzer de pulso controlado desde Home Assistant
+# ----------------------------------------------------------------------------
+# Un switch en HA que, al encenderse, da un pulso al buzzer y se auto-apaga.
+# Útil como timbre/aviso. El pulso NO depende de que HA siga conectado tras
+# dispararse (la secuencia corre en el ESP).
+#
+# Requiere del device (substitutions):
+#   buzzer_pin    — GPIO del buzzer (ej. "GPIO2")
+#   buzzer_name   — nombre del switch en HA (ej. "Buzzer")
+#   buzzer_pulse  — duración del pulso (ej. "1s")
+# ============================================================================
+
+output:
+  - platform: gpio
+    pin: ${buzzer_pin}
+    id: buzzer_out
+
+switch:
+  - platform: template
+    name: ${buzzer_name}
+    id: ha_buzzer_switch
+    # Al encender: pulso de ${buzzer_pulse} y auto-apagado (botón "momentáneo").
+    turn_on_action:
+      - output.turn_on: buzzer_out
+      - delay: ${buzzer_pulse}
+      - output.turn_off: buzzer_out
+      - switch.turn_off: ha_buzzer_switch
+    turn_off_action:
+      - output.turn_off: buzzer_out

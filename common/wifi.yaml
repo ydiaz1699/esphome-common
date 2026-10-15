@@ -6,14 +6,28 @@
 #
 # Requiere del device (substitutions):
 #   wifi_ssid, wifi_password, wifi_fallback,
-#   static_ip, gateway, friendly_name
+#   static_ip, gateway, friendly_name,
+#   wifi_power_save, wifi_output_power, wifi_fast_connect
 #
 # IMPORTANTE: static_ip / gateway deben ser de la MISMA subred que el SSID.
+#
+# Ajustes de radio (fusionados desde una plantilla de dispositivo a batería):
+#   wifi_power_save    NONE (control en tiempo real) | LIGHT (defecto ESP32) |
+#                      HIGH (más ahorro, puede perder paquetes → batería)
+#   wifi_output_power  potencia TX (ej. "20dB" normal; "15dB" si el AP está cerca
+#                      o para reducir picos de corriente / brownout)
+#   wifi_fast_connect  true = unión más rápida (útil con SSID oculto; puede elegir
+#                      un AP subóptimo) | false
 # ============================================================================
 
 wifi:
   ssid: ${wifi_ssid}
   password: ${wifi_password}
+
+  # Ajustes de radio / energía (ver cabecera).
+  power_save_mode: ${wifi_power_save}
+  output_power: ${wifi_output_power}
+  fast_connect: ${wifi_fast_connect}
 
   # IP fija para que Home Assistant no pierda el dispositivo al reasignar DHCP.
   manual_ip:

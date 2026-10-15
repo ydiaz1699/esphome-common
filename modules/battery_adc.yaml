@@ -1,0 +1,81 @@
+# ============================================================================
+# modules/battery_adc.yaml — Monitor de batería LiPo por ADC (voltaje + %)
+# ----------------------------------------------------------------------------
+# Lee el voltaje de la batería por el ADC NATIVO y calcula el % con una curva
+# de descarga LiPo. Pensado para dispositivos a batería (p. ej. el buzzer C6).
+#
+# ADC NATIVO (no external_components): el componente `adc` de ESPHome soporta
+# ESP32-C6 (ADC1 = GPIO0–GPIO6, calibración curve-fitting automática). El fork
+# `lboue/esphome@adc_oneshot` del YAML original NO es necesario con ESPHome
+# actual. Verificar la versión del NAS con `esphome version` (soporte C6 estable
+# desde hace varias versiones).
+#
+# ⚠️ attenuation: ${bat_attenuation} (por defecto auto) es IMPRESCINDIBLE para
+# medir >1.1V: sin ella, el ADC satura ~1.1V y el voltaje de batería (3–4.2V)
+# se leería mal.
+#
+# ⚠️ LECTURA INICIAL AL ARRANCAR: el YAML original disparaba la primera lectura
+# con `esphome: on_boot: component.update: battery_voltage`. NO se pone aquí
+# porque `esphome:` es un MAPA ÚNICO (su dueño es common/base.yaml) y repartirlo
+# entre dos packages provoca conflicto de fusión. En su lugar, el DEVICE añade el
+# on_boot (ver nota abajo), o se acepta la primera lectura tras `bat_update`.
+#
+# Requiere del device (substitutions):
+#   bat_pin          — GPIO del divisor de batería (ej. "GPIO0")
+#   bat_multiply     — factor del divisor de tensión (ej. "2.0" para divisor 1:1)
+#   bat_attenuation  — "auto" (recomendado) o 0db/2.5db/6db/12db
+#   bat_update       — intervalo de lectura (ej. "900s" = 15 min)
+#
+# Para leer la batería nada más arrancar, añadir en el DEVICE (no en este
+# package, para no chocar con el esphome: de base.yaml):
+#   esphome:
+#     on_boot:
+#       priority: 800
+#       then:
+#         - component.update: battery_voltage
+# ============================================================================
+
+sensor:
+  - platform: adc
+    name: "Voltaje Batería"
+    pin: ${bat_pin}
+    id: battery_voltage
+    attenuation: ${bat_attenuation}
+    update_interval: ${bat_update}
+    unit_of_measurement: "V"
+    device_class: voltage
+    state_class: measurement
+    accuracy_decimals: 2
+    entity_category: diagnostic
+    filters:
+      # Factor del divisor de tensión. Ajusta a tu hardware (1:1 → 2.0).
+      - multiply: ${bat_multiply}
+    on_value:
+      then:
+        - component.update: battery_level   # recomputa % tras cada lectura
+
+  - platform: template
+    name: "Nivel Batería"
+    id: battery_level
+    unit_of_measurement: "%"
+    device_class: battery
+    state_class: measurement
+    accuracy_decimals: 0
+    entity_category: diagnostic
+    update_interval: never                  # solo se actualiza vía on_value de arriba
+    # Curva de descarga LiPo (voltaje → %). Específica de tu celda/divisor.
+    # Se puede parametrizar con substitutions si necesitas curvas distintas por
+    # placa; aquí va embebida con valores típicos de una LiPo 1S.
+    lambda: |-
+      float v = id(battery_voltage).state;
+      if (v > 4.20) return 100;
+      if (v < 3.20) return 0;
+      const float voltages[]    = {4.20, 4.00, 3.85, 3.75, 3.65, 3.55, 3.40, 3.20};
+      const float percentages[] = {100,   85,   70,   55,   40,   25,   10,    0};
+      for (int i = 0; i < 7; i++) {
+        if (v >= voltages[i+1]) {
+          float slope = (percentages[i+1] - percentages[i]) / (voltages[i+1] - voltages[i]);
+          return percentages[i] + slope * (v - voltages[i]);
+        }
+      }
+      return 0;

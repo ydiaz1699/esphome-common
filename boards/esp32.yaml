@@ -1,0 +1,12 @@
+# ============================================================================
+# boards/esp32.yaml — Hardware: ESP32 genérico, 4MB, ESP-IDF
+# ----------------------------------------------------------------------------
+# Único dueño del mapa `esp32`. Para otra placa, crear otro archivo en boards/
+# (p. ej. boards/esp32-c3.yaml) y NO editar este.
+# ============================================================================
+
+esp32:
+  variant: esp32
+  flash_size: 4MB
+  framework:
+    type: esp-idf

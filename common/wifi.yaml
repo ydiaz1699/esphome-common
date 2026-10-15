@@ -1,0 +1,34 @@
+# ============================================================================
+# common/wifi.yaml — WiFi + IP fija + portal de recuperación
+# ----------------------------------------------------------------------------
+# Package REMOTO: NO puede usar !secret. SSID/passwords entran como
+# substitutions que el DEVICE inyecta desde su propio secrets.yaml.
+#
+# Requiere del device (substitutions):
+#   wifi_ssid, wifi_password, wifi_fallback,
+#   static_ip, gateway, friendly_name
+#
+# IMPORTANTE: static_ip / gateway deben ser de la MISMA subred que el SSID.
+# ============================================================================
+
+wifi:
+  ssid: ${wifi_ssid}
+  password: ${wifi_password}
+
+  # IP fija para que Home Assistant no pierda el dispositivo al reasignar DHCP.
+  manual_ip:
+    static_ip: ${static_ip}
+    gateway: ${gateway}
+    subnet: 255.255.255.0
+    dns1: ${gateway}
+
+  # Reinicia si no logra recuperar la conexión.
+  reboot_timeout: 15min
+
+  # Punto de acceso de recuperación si no conecta al WiFi.
+  ap:
+    ssid: "${friendly_name} Recovery"
+    password: ${wifi_fallback}
+
+# Portal de recuperación de WiFi.
+captive_portal:

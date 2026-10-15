@@ -1,0 +1,45 @@
+# ============================================================================
+# modules/entradas.yaml — Entradas físicas
+#  - Pulsador GPIO23 → conmuta el Sonoff vía HA (sin bucle).
+#  - TTP223 GPIO22   → activo-HIGH; expuesto a HA, SIN acción (uso futuro).
+# ----------------------------------------------------------------------------
+# Requiere del device (substitutions):
+#   boton_name, boton_pin, debounce_time, sonoff_entity, ttp_name, ttp_pin
+#
+# NOTA: usa `id` fijos (boton_pulsador, touch_ttp223) → solo se puede incluir
+# UNA vez por dispositivo. Para varias instancias, parametrizar también los id.
+# El pulsador DEPENDE de que la API esté conectada a HA y de que HA permita al
+# dispositivo ejecutar acciones.
+# ============================================================================
+
+binary_sensor:
+  - platform: gpio
+    name: ${boton_name}
+    id: boton_pulsador
+    pin:
+      number: ${boton_pin}
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: ${debounce_time}
+      - delayed_off: ${debounce_time}
+    on_press:
+      - homeassistant.service:
+          service: switch.toggle
+          data:
+            entity_id: ${sonoff_entity}
+
+  # TTP223 (VCC, GND, I/O): activo-HIGH, sin pull-up. TODO: definir función.
+  - platform: gpio
+    name: ${ttp_name}
+    id: touch_ttp223
+    pin:
+      number: ${ttp_pin}
+      mode:
+        input: true
+      inverted: false
+    filters:
+      - delayed_on: ${debounce_time}
+      - delayed_off: ${debounce_time}

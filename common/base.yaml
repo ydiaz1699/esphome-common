@@ -1,0 +1,44 @@
+# ============================================================================
+# common/base.yaml — Núcleo reutilizable (esphome, logger, api, ota)
+# ----------------------------------------------------------------------------
+# Package REMOTO: NO puede usar !secret. Los valores sensibles entran como
+# substitutions que el DEVICE inyecta desde su propio secrets.yaml.
+#
+# Requiere del device (substitutions):
+#   device_name, friendly_name, device_comment, log_level,
+#   api_encryption_key, ota_password
+# ============================================================================
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: ${device_comment}
+  min_version: 2026.6.0
+  on_boot:
+    - priority: -100
+      then:
+        - logger.log:
+            level: INFO
+            format: "ESP32 iniciado correctamente"
+
+logger:
+  level: ${log_level}
+
+# API para Home Assistant (conexión nativa, puerto 6053 en la placa).
+# La clave de cifrado llega por substitution (el device la define con !secret).
+api:
+  encryption:
+    key: ${api_encryption_key}
+  on_client_connected:
+    - logger.log:
+        level: INFO
+        format: "Cliente conectado a la API"
+  on_client_disconnected:
+    - logger.log:
+        level: INFO
+        format: "Cliente desconectado de la API"
+
+# OTA protegida. La contraseña llega por substitution.
+ota:
+  - platform: esphome
+    password: ${ota_password}

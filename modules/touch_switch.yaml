@@ -1,0 +1,38 @@
+# ============================================================================
+# modules/touch_switch.yaml — Control del Sonoff + indicador de su estado
+#   Fuente de verdad = Sonoff (el ESP refleja, no decide).
+# ----------------------------------------------------------------------------
+# Requiere del device (substitutions): sonoff_entity, switch_name
+#
+# LÍMITE CONOCIDO (Camino B): el "Indicador Sonoff" (platform: homeassistant)
+# NO toma el estado inicial al arrancar el ESP (HA no reenvía el estado actual
+# al suscribirse; bug de plataforma HA core #184371). Solo sincroniza tras el
+# primer cambio. Asumido: la fuente de verdad es la entidad nativa del Sonoff.
+# ============================================================================
+
+binary_sensor:
+  - platform: homeassistant
+    name: "Indicador Sonoff"
+    id: indicador_sonoff
+    entity_id: ${sonoff_entity}
+    # Reflejar el estado del Sonoff en el switch (sin rebote).
+    on_state:
+      - lambda: |-
+          id(interruptor_virtual).publish_state(x);
+
+switch:
+  - platform: template
+    name: ${switch_name}
+    id: interruptor_virtual
+    icon: mdi:toggle-switch
+    optimistic: false
+    turn_on_action:
+      - homeassistant.service:
+          service: switch.turn_on
+          data:
+            entity_id: ${sonoff_entity}
+    turn_off_action:
+      - homeassistant.service:
+          service: switch.turn_off
+          data:
+            entity_id: ${sonoff_entity}

@@ -1,0 +1,88 @@
+# ============================================================================
+# common/diagnostics.yaml — Diagnóstico interno, estado online y mantenimiento
+# ----------------------------------------------------------------------------
+# Sin secretos. Solo listas (sensor/text_sensor/binary_sensor/button) + debug.
+# Los botones restart/safe_mode viven SOLO aquí (no duplicar en otro package).
+#
+# Requiere del device (substitutions):
+#   friendly_name, wifi_update_interval, uptime_update_interval,
+#   debug_update_interval
+# ============================================================================
+
+debug:
+  update_interval: ${debug_update_interval}
+
+sensor:
+  - platform: wifi_signal
+    name: "${friendly_name} Señal Wi-Fi"
+    id: wifi_rssi
+    update_interval: ${wifi_update_interval}
+    entity_category: diagnostic
+    device_class: signal_strength
+    state_class: measurement
+    unit_of_measurement: "dBm"
+    accuracy_decimals: 0
+
+  - platform: uptime
+    name: "${friendly_name} Tiempo Encendido"
+    id: uptime_seconds
+    type: seconds
+    update_interval: ${uptime_update_interval}
+    entity_category: diagnostic
+    device_class: duration
+    state_class: total_increasing
+    accuracy_decimals: 0
+
+  - platform: debug
+    free:
+      name: "${friendly_name} Memoria Libre"
+      entity_category: diagnostic
+      state_class: measurement
+      unit_of_measurement: "B"
+      accuracy_decimals: 0
+    block:
+      name: "${friendly_name} Bloque Libre Mayor"
+      entity_category: diagnostic
+      state_class: measurement
+      unit_of_measurement: "B"
+      accuracy_decimals: 0
+    loop_time:
+      name: "${friendly_name} Tiempo del Bucle"
+      entity_category: diagnostic
+      state_class: measurement
+      unit_of_measurement: "ms"
+      accuracy_decimals: 0
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "${friendly_name} Dirección IP"
+      entity_category: diagnostic
+    ssid:
+      name: "${friendly_name} SSID Conectado"
+      entity_category: diagnostic
+
+  - platform: version
+    name: "${friendly_name} Versión ESPHome"
+    entity_category: diagnostic
+
+  - platform: debug
+    device:
+      name: "${friendly_name} Información del Dispositivo"
+      entity_category: diagnostic
+    reset_reason:
+      name: "${friendly_name} Motivo del Reinicio"
+      entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "${friendly_name} Estado Online"
+    entity_category: diagnostic
+
+button:
+  - platform: restart
+    name: "${friendly_name} Reiniciar"
+    entity_category: config
+  - platform: safe_mode
+    name: "${friendly_name} Reiniciar en Modo Seguro"
+    entity_category: config
